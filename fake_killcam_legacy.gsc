@@ -143,9 +143,9 @@ drawtext(text, align, relative, x, y, fontscale, font, color, alpha, sort){
 shader(align, relative, x, y, shader, width, height, color, alpha, sort){
     element = newclienthudelem(self);
     element.elemtype = "bar";
-	element.hidewheninmenu = true;
-	element.shader = shader;
-	element.width = width;
+    element.hidewheninmenu = true;
+    element.shader = shader;
+    element.width = width;
     element.height = height;
     element.align = align;
     element.relative = relative;
