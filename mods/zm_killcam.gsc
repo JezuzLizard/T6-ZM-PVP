@@ -81,10 +81,6 @@ finalkillcamwaiter() //checked matches cerberus output
 
 postroundfinalkillcam() //checked matches cerberus output
 {
-	if ( is_true( level.sidebet ) )
-	{
-		return;
-	}
 	level notify( "play_final_killcam" );
 	maps/mp/gametypes_zm/_globallogic::resetoutcomeforallplayers();
 	finalkillcamwaiter();
@@ -146,7 +142,6 @@ areanyplayerswatchingthekillcam() //checked changed to match cerberus output
 }
 
 killcam( attackernum, targetnum, killcamentity, killcamentityindex, killcamentitystarttime, sweapon, deathtime, deathtimeoffset, offsettime, respawn, maxtime, perks, attacker ) //checked changed to match cerberus output
-//killcam( attackernum, targetnum, killcamentity, killcamentityindex, killcamentitystarttime, sweapon, deathtime, deathtimeoffset, offsettime, respawn, maxtime, perks, killstreaks, attacker ) //checked changed to match cerberus output
 {
 	self endon( "disconnect" );
 	//self endon( "spawned" );
@@ -188,7 +183,6 @@ killcam( attackernum, targetnum, killcamentity, killcamentityindex, killcamentit
 	{
 		self thread setkillcamentity( killcamentityindex, killcamentitystarttime - killcamstarttime - 100 );
 	}
-	self setclientuivisibilityflag( "hud_visible", 0 );
 	self.killcamtargetentity = targetnum;
 	self.archivetime = killcamoffset;
 	self.killcamlength = killcamlength;
@@ -225,10 +219,16 @@ killcam( attackernum, targetnum, killcamentity, killcamentityindex, killcamentit
 	self thread waitskipkillcambutton();
 	self thread waitteamchangeendkillcam();
 	self thread waitkillcamtime();
-	//self thread maps/mp/_tacticalinsertion::cancel_button_think();
+
+	self setclientuivisibilityflag( "hud_visible", 0 );
+	self overlay(true, attacker, false);
+
 	self waittill( "end_killcam" );
 	self endkillcam( 0 );
+
 	self setclientuivisibilityflag( "hud_visible", 1 );
+	self overlay(false);
+
 	self.sessionstate = "specator";
     //self.sessionstate = "dead";
 	self.spectatorclient = -1;
@@ -484,7 +484,6 @@ finalkillcam( winner ) //checked changed to match cerberus output
 	{
 		self thread setkillcamentity( killcamsettings.entityindex, killcamsettings.entitystarttime - killcamstarttime - 100 );
 	}
-	self setclientuivisibilityflag( "hud_visible", 10 );
 	self.killcamtargetentity = killcamsettings.targetentityindex;
 	self.archivetime = killcamoffset;
 	self.killcamlength = killcamlength;
@@ -738,4 +737,98 @@ initkcelements() //checked matches cerberus output
 			self.kc_timer.hidewheninmenu = 1;
 		}
 	}
+}
+
+overlay(on, attacker, final) {
+	self iprintln("overlay test 2/2");
+    if (on) {
+        name = attacker.name;
+        tag = "";
+        prefix = -1;
+        postfix = -1;
+        color = (1,0,0);
+
+        for(i = 0; i < attacker.name.size; i++) {
+            if(attacker.name[i] == "[" && prefix == -1) {
+                prefix = i;
+            } else if(attacker.name[i] == "]" && postfix == -1) {
+                postfix = i;
+            }
+        }
+
+        if (prefix != -1 && postfix != -1) {
+            tag = getsubstr(attacker.name, prefix, postfix + 1);
+            name = getsubstr(attacker.name, postfix + 1);
+        }
+        if (final) {
+            color = (0,0,0);
+        }
+
+        self.hud = [];
+        self.hud[0] = self shader("CENTER", "CENTER", 0, -200, "white", 854, 80, color, 0.2, 1); //top bar
+        self.hud[1] = self shader("CENTER", "CENTER", 0, 200, "white", 854, 80, color, 0.2, 1); //bot bar
+        self.hud[2] = self shader("CENTER", "CENTER", 0, 180, "emblem_bg_default", 160, 40, (1, 1, 1), 0.9, 2); //calling card
+        self.hud[3] = self shader("CENTER", "CENTER", 5, 188, "zombies_rank_5", 16, 16, (1, 1, 1), 1, 3); //player rank
+        self.hud[4] = self drawtext(name, "LEFT", "CENTER", -44, 171, 1.25, "default", (1,1,1), 1, 3); //player name
+        self.hud[5] = self drawtext(tag, "LEFT", "CENTER", -44, 188, 1.25, "default", (1,1,1), 1, 3); //player tag
+        self.hud[6] = self drawtext(checkKillcamType(final), "CENTER", "CENTER", 0, -180, 3.25, "default", (1,1,1), 1, 3); //top text
+		for ( i = 0; i < self.hud.size; i++ )
+		{
+			self.hud[ i ].foreground = true;
+			self.hud[ i ].hidewhendead = false;
+		}
+    } else {
+        self.hud[0] destroy();
+        self.hud[1] destroy();
+        self.hud[2] destroy();
+        self.hud[3] destroy();
+        self.hud[4] destroy();
+        self.hud[5] destroy();
+        self.hud[6] destroy();
+    }
+}
+
+checkKillcamType(final)
+{
+	if (final) {
+		return "FINAL KILLCAM";
+	} else if (level.infinalkillcam && waslastround()) {
+		return "FINAL KILLCAM";
+	} else if (level.infinalkillcam) {
+		return "ROUND ENDING KILLCAM";
+	} else {
+		return "KILLCAM";
+	}
+}
+
+drawtext(text, align, relative, x, y, fontscale, font, color, alpha, sort){
+    element = self createfontstring(font, fontscale);
+    element setpoint(align, relative, x, y);
+    element settext(text);
+    element.hidewheninmenu = false;
+    element.color = color;
+    element.alpha = alpha;
+    element.sort = sort;
+    return element;
+} 
+
+shader(align, relative, x, y, shader, width, height, color, alpha, sort){
+    element = newclienthudelem(self);
+    element.elemtype = "bar";
+    element.hidewheninmenu = false;
+    element.shader = shader;
+    element.width = width;
+    element.height = height;
+    element.align = align;
+    element.relative = relative;
+    element.xoffset = 0;
+    element.yoffset = 0;
+    element.children = [];
+    element.sort = sort;
+    element.color = color;
+    element.alpha = alpha;
+    element setparent(level.uiparent);
+    element setshader(shader, width, height);
+    element setpoint(align, relative, x, y);
+    return element;
 }
