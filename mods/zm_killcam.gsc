@@ -81,20 +81,28 @@ finalkillcamwaiter() //checked matches cerberus output
 
 postroundfinalkillcam() //checked matches cerberus output
 {
+	logprint("in the postroundfinalkillcam func\n");
 	level notify( "play_final_killcam" );
+	logprint("passed notify\n");
 	maps/mp/gametypes_zm/_globallogic::resetoutcomeforallplayers();
 	finalkillcamwaiter();
 }
 
 dofinalkillcam() //checked changed to match cerberus output
 {
+	logprint("dofinalkillcam function waiting...\n");
 	level waittill( "play_final_killcam" );
 	level.infinalkillcam = 1;
+	logprint("dofinalkillcam passed and is now going!\n");
 	winner = "none";
 	if ( isDefined( level.finalkillcam_winner ) )
 	{
 		winner = level.finalkillcam_winner;
 	}
+
+	logprint("winner defined? " + isdefined(winner) + "\n");
+	logprint("winner name: " + winner.name);
+
 	if ( !isDefined( level.finalkillcamsettings[ winner ].targetentityindex ) )
 	{
 		level.infinalkillcam = 0;
@@ -107,6 +115,7 @@ dofinalkillcam() //checked changed to match cerberus output
 	}
 	visionsetnaked( getDvar( "mapname" ), 0 );
 	players = level.players;
+	logprint("closing menu for all players and calling finalkillcam\n");
 	for ( index = 0; index < players.size; index++ )
 	{
 		player = players[ index ];
@@ -114,12 +123,14 @@ dofinalkillcam() //checked changed to match cerberus output
 		player closeingamemenu();
 		player thread finalkillcam( winner );
 	}
+	logprint("passed the all player part\n");
 	wait 0.1;
 	while ( areanyplayerswatchingthekillcam() )
 	{
 		wait 0.05;
 	}
 	level notify( "final_killcam_done" );
+	logprint("killcam is done. yay\n");
 	level.infinalkillcam = 0;
 }
 
@@ -146,6 +157,8 @@ killcam( attackernum, targetnum, killcamentity, killcamentityindex, killcamentit
 	self endon( "disconnect" );
 	//self endon( "spawned" );
 	level endon( "end_game" );
+
+	logprint("killcam was called on " + self.name + " with " + attacker.name + "\n");
 
 	if ( attackernum < 0 )
 	{
@@ -219,16 +232,10 @@ killcam( attackernum, targetnum, killcamentity, killcamentityindex, killcamentit
 	self thread waitskipkillcambutton();
 	self thread waitteamchangeendkillcam();
 	self thread waitkillcamtime();
-
 	self setclientuivisibilityflag( "hud_visible", 0 );
-	self overlay(true, attacker, false);
-
 	self waittill( "end_killcam" );
 	self endkillcam( 0 );
-
 	self setclientuivisibilityflag( "hud_visible", 1 );
-	self overlay(false);
-
 	self.sessionstate = "specator";
     //self.sessionstate = "dead";
 	self.spectatorclient = -1;
@@ -454,6 +461,14 @@ finalkillcam( winner ) //checked changed to match cerberus output
 {
 	self endon( "disconnect" );
 	level endon( "end_game" );
+
+	attacker = level.finalkillcamsettings[ winner ].attacker;
+
+	logprint("attacker defined? " + isdefined(attacker) + "\n");
+	logprint("attacker name: " + attacker.name + "\n");
+
+	self thread overlay(true, attacker, true);
+
 	if ( waslastround() )
 	{
 		setmatchflag( "final_killcam", 1 );
@@ -504,6 +519,7 @@ finalkillcam( winner ) //checked changed to match cerberus output
 		self.archivetime = 0;
 		self.psoffsettime = 0;
 		self notify( "end_killcam" );
+		self thread overlay(false);
 		return;
 	}
 	self thread checkforabruptkillcamend();
@@ -515,6 +531,7 @@ finalkillcam( winner ) //checked changed to match cerberus output
 	self thread waitkillcamtime();
 	self thread waitfinalkillcamslowdown( level.finalkillcamsettings[ winner ].deathtime, killcamstarttime );
 	self waittill( "end_killcam" );
+	self thread overlay(false);
 	self endkillcam( 1 );
 	setmatchflag( "final_killcam", 0 );
 	setmatchflag( "round_end_killcam", 0 );

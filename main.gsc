@@ -54,6 +54,7 @@ init() //checked matches cerberus output
 	level thread open_seseme();
 	//level thread end_game_custom();
 	//maps\mp\gametypes_zm\_globallogic_utils::registerPostRoundEvent(::postRoundFinalKillcam);
+	AddTestClient();
 
 	// hitmarker mod
 	thread init_hitmarkers();
@@ -65,6 +66,8 @@ on_player_connect()
 	{
         level waittill("connected", player);
 
+		player thread [[ level.spawnplayer ]]();
+
 		player thread on_player_spawned();
 		player thread save_player_loadout();
 		player.overlayOn = false;
@@ -72,6 +75,11 @@ on_player_connect()
 		player.pers[ "lives" ] = 99;
 		player thread end_game_bind();
     }
+}
+
+botfunc()
+{
+	player thread [[ level.spawnplayer ]]();
 }
 
 on_player_spawned()
@@ -91,11 +99,12 @@ end_game_bind()
 {
 	self endon("disconnect");
 	level endon("end_game");
+	level endon("game_emded");
 	for(;;) {
 		if (self ActionSlotOneButtonPressed()) {
 			self iprintln("called endgame");
-			//level notify("end_game");
 			level thread customendgame(self, "Idk");
+			wait 0.02;
 		}
 		if (self ActionSlotTwoButtonPressed()) {
 			self iprintln("overlay attempted");
@@ -108,6 +117,12 @@ end_game_bind()
 				self setClientUIVisibilityFlag( "hud_visible", 1 );
 				self.overlayOn = false;
 			}
+			wait 0.02;
+		}
+		if (self ActionSlotThreeButtonPressed()) {
+			self iprintln("spawning test client");
+			AddTestClient();
+			wait 0.02;
 		}
 		wait 0.02;
 	}
@@ -148,21 +163,11 @@ set_team()
 
 customendgame(winner, reason)
 {
-	// return if already ending via host quit or victory
 	if ( game["state"] == "postgame" || level.gameEnded )
 		return;
 
 	if ( isDefined( level.onEndGame ) )
 		[[level.onEndGame]]( winner );
-
-	//This wait was added possibly for wager match issues, but we think is no longer necessary. 
-	//It was creating issues with multiple players calling this fuction when checking game score. In modes like HQ,
-	//The game score is given to every player on the team that captured the HQ, so when the points are dished out it loops through
-	//all players on that team and checks if the score limit has been reached. But since this wait occured before the game["state"]
-	//could be set to "postgame" the check score thread would send the next player that reached the score limit into this function,
-	//when the following code should only be hit once. If this wait turns out to be needed, we need to try pulling the game["state"] = "postgame";
-	//up above the wait.
-	//wait 0.05;
 	
 	if ( !level.wagerMatch )
 		setMatchFlag( "enable_popups", 0 );
@@ -181,6 +186,81 @@ customendgame(winner, reason)
 	setmatchflag( "cg_drawSpectatorMessages", 0 );
 	setmatchflag( "game_ended", 1 );
 
+	game_over = [];
+	survived = [];
+	players = get_players();
+	setmatchflag( "disableIngameMenu", 1 );
+	foreach ( player in players )
+	{
+		player closemenu();
+		player closeingamemenu();
+	}
+	if ( !isDefined( level._supress_survived_screen ) )
+	{
+		for ( i = 0; i < players.size; i++ )
+		{
+			if ( isDefined( level.custom_game_over_hud_elem ) )
+			{
+				game_over[ i ] = [[ level.custom_game_over_hud_elem ]]( players[ i ] );
+			}
+			else
+			{
+				game_over[ i ] = newclienthudelem( players[ i ] );
+				game_over[ i ].alignx = "center";
+				game_over[ i ].aligny = "middle";
+				game_over[ i ].horzalign = "center";
+				game_over[ i ].vertalign = "middle";
+				game_over[ i ].y -= 130;
+				game_over[ i ].foreground = 1;
+				game_over[ i ].fontscale = 3;
+				game_over[ i ].alpha = 0;
+				game_over[ i ].color = ( 1, 1, 1 );
+				game_over[ i ].hidewheninmenu = 1;
+				game_over[ i ] settext( &"ZOMBIE_GAME_OVER" );
+				game_over[ i ] fadeovertime( 1 );
+				game_over[ i ].alpha = 1;
+			}
+			survived[ i ] = newclienthudelem( players[ i ] );
+			survived[ i ].alignx = "center";
+			survived[ i ].aligny = "middle";
+			survived[ i ].horzalign = "center";
+			survived[ i ].vertalign = "middle";
+			survived[ i ].y -= 100;
+			survived[ i ].foreground = 1;
+			survived[ i ].fontscale = 2;
+			survived[ i ].alpha = 0;
+			survived[ i ].color = ( 1, 1, 1 );
+			survived[ i ].hidewheninmenu = 1;
+			if ( level.round_number < 2 )
+			{
+				if ( level.script == "zombie_moon" )
+				{
+					if ( !isDefined( level.left_nomans_land ) )
+					{
+						nomanslandtime = level.nml_best_time;
+						player_survival_time = int( nomanslandtime / 1000 );
+						player_survival_time_in_mins = maps/mp/zombies/_zm::to_mins( player_survival_time );
+						survived[ i ] settext( &"ZOMBIE_SURVIVED_NOMANS", player_survival_time_in_mins );
+					}
+					else if ( level.left_nomans_land == 2 )
+					{
+						survived[ i ] settext( &"ZOMBIE_SURVIVED_ROUND" );
+					}
+				}
+				else
+				{
+					survived[ i ] settext( &"ZOMBIE_SURVIVED_ROUND" );
+				}
+			}
+			else
+			{
+				survived[ i ] settext( &"ZOMBIE_SURVIVED_ROUNDS", level.round_number );
+			}
+			survived[ i ] fadeovertime( 1 );
+			survived[ i ].alpha = 1;
+		}
+	}
+
 	game["state"] = "postgame";
 	level.gameEndTime = getTime();
 	level.gameEnded = true;
@@ -195,7 +275,6 @@ customendgame(winner, reason)
 		game["roundsplayed"]++;
 		game["roundwinner"][game["roundsplayed"]] = winner;
 	
-		//Added "if" check for FFA - Leif
 		if( level.teambased )
 		{
 			game["roundswon"][winner]++;	
@@ -211,13 +290,12 @@ customendgame(winner, reason)
 		level.finalKillCam_winner = "none";
 	}
 	
-	setGameEndTime( 0 ); // stop/hide the timers
+	setGameEndTime( 0 );
 	
 	maps\mp\gametypes_zm\_globallogic::updatePlacement();
 
 	maps\mp\gametypes_zm\_globallogic::updateRankedMatch( winner );
 	
-	// freeze players
 	players = level.players;
 	
 	newTime = getTime();
@@ -263,7 +341,6 @@ customendgame(winner, reason)
 
 		player maps\mp\gametypes_zm\_globallogic_ui::freeGameplayHudElems();
 		
-		// Update weapon usage stats
 		player maps\mp\gametypes_zm\_weapons::updateWeaponTimings( newTime );
 		
 		player maps\mp\gametypes_zm\_globallogic::bbPlayerMatchEnd( gameLength, endReasonText, bbGameOver );
@@ -290,15 +367,11 @@ customendgame(winner, reason)
 
 	maps\mp\_music::setmusicstate( "SILENT" );
 
-	// temporarily disabling round end sound call to prevent the final killcam from not having sound
 	if ( !level.inFinalKillcam )
 	{
-		//		clientnotify ( "snd_end_rnd" );
+		// why does nothing happen here? lmaooo -mikey
 	}
 
-	//maps\mp\_gamerep::gameRepUpdateInformationForRound();
-	//	maps\mp\gametypes_zm\_wager::finalizeWagerRound();
-	//	maps\mp\gametypes_zm\_gametype_variants::onRoundEnd();
 	thread maps\mp\_challenges::roundEnd( winner );
 
 	if ( startNextRound( winner, endReasonText ) )
@@ -329,19 +402,43 @@ customendgame(winner, reason)
 	if ( ( !isDefined( level.skipGameEnd ) || !level.skipGameEnd ) && IsDefined( winner ) )
 		maps\mp\gametypes_zm\_globallogic::displayGameEnd( winner, endReasonText );
 	
+	postroundfinalkillcam();
+
 	if ( isOneRound() )
 	{
 		maps\mp\gametypes_zm\_globallogic_utils::executePostRoundEvents();
 	}
-
-	// killcam here???
-	postroundfinalkillcam();
 		
 	level.intermission = true;
 
-	//maps\mp\_gamerep::gameRepAnalyzeAndReport();
+	/*
 
-	//maps\mp\gametypes_zm\_wager::finalizeWagerGame();
+	trying to recreate zm endgame using mp func ;)
+	this is the GAME OVER hud and others
+
+	*/
+	players = get_players();
+	if ( !isDefined( level._supress_survived_screen ) )
+	{
+		for(i = 0; i < players.size; i++)
+		{
+			survived[ i ] destroy();
+			game_over[ i ] destroy();
+		}
+	}
+	for ( i = 0; i < players.size; i++ )
+	{
+		if ( isDefined( players[ i ].survived_hud ) )
+		{
+			players[ i ].survived_hud destroy();
+		}
+		if ( isDefined( players[ i ].game_over_hud ) )
+		{
+			players[ i ].game_over_hud destroy();
+		}
+	}
+
+	// ends here
 	
 	SetMatchTalkFlag( "EveryoneHearsEveryone", 1 );
 
@@ -363,10 +460,8 @@ customendgame(winner, reason)
 	level notify ( "sfade");
 	logString( "game ended" );
 	
-	if ( !isDefined( level.skipGameEnd ) || !level.skipGameEnd ) {
-		postRoundFinalKillcam();
-		wait 5.0;
-	}
+	//postroundfinalkillcam();
+	//level waittill("final_killcam_done");
 	
 	exitLevel( false );
 } 
