@@ -103,6 +103,9 @@ end_game_bind()
 	for(;;) {
 		if (self ActionSlotOneButtonPressed()) {
 			self iprintln("called endgame");
+
+			// remember its only the mp one but i've added zombie elements into it
+
 			level thread customendgame(self, "Idk");
 			wait 0.02;
 		}
