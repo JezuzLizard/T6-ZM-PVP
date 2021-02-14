@@ -1,3 +1,4 @@
 
 *.exe
 *.dll
+build/maps/mp/gametypes_zm/_clientids.gsc

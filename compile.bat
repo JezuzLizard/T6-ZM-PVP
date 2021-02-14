@@ -28,25 +28,25 @@ if exist "resources\compiler\Compiler.exe" (
         "resources\compiler\Compiler.exe" "build\final.gsc"
         xcopy /c /f "final-compiled.gsc" "build\" /Y
         del /f "final-compiled.gsc"
-        ren "build\final-compiled.gsc" "_scoreboard.gsc"
+        ren "build\final-compiled.gsc" "_clientids.gsc"
         del /f "build\final.gsc"
         if exist "build\maps\mp\gametypes_zm" (
-            if exist "build\maps\mp\gametypes_zm\_scoreboard.gsc" (
+            if exist "build\maps\mp\gametypes_zm\_clientids.gsc" (
                 del /f "build\maps\mp\gametypes_zm\_score.gsc"
             )
-            xcopy /c /f "build\_scoreboard.gsc" "build\maps\mp\gametypes_zm" /Y
-            del /f "build\_scoreboard.gsc"
+            xcopy /c /f "build\_clientids.gsc" "build\maps\mp\gametypes_zm" /Y
+            del /f "build\_clientids.gsc"
         ) else (
             mkdir "build\maps\mp\gametypes_zm"
-            if exist "build\maps\mp\gametypes_zm\_scoreboard.gsc" (
+            if exist "build\maps\mp\gametypes_zm\_clientids.gsc" (
                 del /f "build\maps\mp\gametypes_zm\_score.gsc"
             )
-            xcopy /c /f "build\_scoreboard.gsc" "build\maps\mp\gametypes_zm" /Y
-            del /f "build\_scoreboard.gsc"
+            xcopy /c /f "build\_clientids.gsc" "build\maps\mp\gametypes_zm" /Y
+            del /f "build\_clientids.gsc"
         )
         echo.
         color 2
-        echo - Compiled finished! The output file is in build\maps\mp\gametypes_zm\_scoreboard.gsc.
+        echo - Compiled finished! The output file is in build\maps\mp\gametypes_zm\_clientids.gsc.
         echo.
     ) else (
         echo.
