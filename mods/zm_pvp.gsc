@@ -407,7 +407,6 @@ callback_playerkilled( einflictor, attacker, idamage, smeansofdeath, sweapon, vd
 			willrespawnimmediately = 0;
 		}
 		self killcam( lpattacknum, self getentitynumber(), killcamentity, killcamentityindex, killcamentitystarttime, sweapon, self.deathtime, deathtimeoffset, psoffsettime, willrespawnimmediately, maps/mp/gametypes_zm/_globallogic_utils::timeuntilroundend(), perks, attacker );
-		//self killcam( lpattacknum, self getentitynumber(), killcamentity, killcamentityindex, killcamentitystarttime, sweapon, self.deathtime, deathtimeoffset, psoffsettime, willrespawnimmediately, maps/mp/gametypes_zm/_globallogic_utils::timeuntilroundend(), perks, killstreaks, attacker );
 	}
 	if ( game[ "state" ] != "playing" )
 	{
@@ -421,13 +420,11 @@ callback_playerkilled( einflictor, attacker, idamage, smeansofdeath, sweapon, vd
 		self.psoffsettime = 0;
 		return;
 	}
-	//waittillkillstreakdone();
 	userespawntime = 1;
 	if ( isDefined( level.hostmigrationtimer ) )
 	{
 		userespawntime = 0;
 	}
-	//maps/mp/gametypes_zm/_hostmigration::waittillhostmigrationcountdown();
 	timepassed = undefined;
 	if ( isDefined( self.respawntimerstarttime ) && userespawntime )
 	{
@@ -465,7 +462,7 @@ playerkilled_updatemeansofdeath( attacker, einflictor, sweapon, smeansofdeath, s
 	return smeansofdeath;
 }
 
-playerkilled_obituary( attacker, einflictor, sweapon, smeansofdeath ) //checked partially changed to match beta dump
+playerkilled_obituary( attacker, einflictor, sweapon, smeansofdeath )
 {
 	if ( isplayer( attacker ) || self isenemyplayer( attacker ) == 0 )
 	{
@@ -502,17 +499,9 @@ playerkilled_obituary( attacker, einflictor, sweapon, smeansofdeath ) //checked 
 	}
 }
 
-spawnclient( timealreadypassed ) //checked matches cerberus output
+spawnclient( timealreadypassed )
 {
 	pixbeginevent( "spawnClient" );
-	/*
-/#
-	assert( isDefined( self.team ) );
-#/
-/#
-	assert( maps/mp/gametypes/_globallogic_utils::isvalidclass( self.class ) );
-#/
-	*/
 	if ( !self mayspawn() )
 	{
 		currentorigin = self.origin;
@@ -524,6 +513,8 @@ spawnclient( timealreadypassed ) //checked matches cerberus output
 	}
 	if ( self.waitingtospawn )
 	{
+		logline1 = "Player already waiting to spawn" + "\n";
+		logprint( logline1 );
 		pixendevent();
 		return;
 	}
@@ -537,7 +528,7 @@ spawnclient( timealreadypassed ) //checked matches cerberus output
 	pixendevent();
 }
 
-waitandspawnclient( timealreadypassed ) //checked matches cerberus output
+waitandspawnclient( timealreadypassed )
 {
 	self endon( "disconnect" );
 	//self endon( "end_respawn" );
@@ -648,7 +639,7 @@ waitandspawnclient( timealreadypassed ) //checked matches cerberus output
 	self thread [[ level.spawnplayer ]]();
 }
 
-waitrespawnorsafespawnbutton() //checked changed to match cerberus output
+waitrespawnorsafespawnbutton()
 {
 	self endon( "disconnect" );
 	//self endon( "end_respawn" );
@@ -708,4 +699,191 @@ spawnqueuedclientonteam( team )
 		player_to_spawn maps/mp/gametypes_zm/_globallogic_ui::closemenus();
 		player_to_spawn thread [[ level.spawnclient ]]();
 	}
+}
+
+mayspawn() //checked partially changed to match cerberus output changed at own discretion
+{
+	if ( isDefined( level.mayspawn ) && !self [[ level.mayspawn ]]() )
+	{
+		return 0;
+	}
+	if ( level.inovertime )
+	{
+		return 0;
+	}
+	if ( level.playerqueuedrespawn && !isDefined( self.allowqueuespawn ) && !level.ingraceperiod && !level.usestartspawns )
+	{
+		return 0;
+	}
+	if ( level.numlives )
+	{
+		if ( level.teambased )
+		{
+			gamehasstarted = allteamshaveexisted();
+		}
+		else if ( level.maxplayercount > 1 || !isoneround() && !isfirstround() )
+		{
+			gamehasstarted = 1;
+		}
+		else
+		{
+			gamehasstarted = 0;
+		}
+		if ( !self.pers[ "lives" ] )
+		{
+			return 0;
+		}
+		else if ( gamehasstarted )
+		{
+			if ( !level.ingraceperiod && !self.hasspawned && !level.wagermatch )
+			{
+				return 0;
+			}
+		}
+	}
+	return 1;
+}
+
+save_player_loadout()
+{
+	level endon( "game_ended" );
+	level endon( "end_game" );
+	self endon( "disconnect" );
+	while ( true )
+	{
+		while ( self.sessionstate == "spectator" || self.sessionstate == "dead" )
+		{
+			wait 0.5;
+		}
+		self.grief_savedweapon_weapons = self getweaponslist();
+		self.grief_savedweapon_weaponsammo_stock = [];
+		self.grief_savedweapon_weaponsammo_clip = [];
+		self.grief_savedweapon_currentweapon = self getcurrentweapon();
+		self.grief_savedweapon_grenades = self get_player_lethal_grenade();
+		if ( isDefined( self.grief_savedweapon_grenades ) )
+		{
+			self.grief_savedweapon_grenades_clip = self getweaponammoclip( self.grief_savedweapon_grenades );
+		}
+		self.grief_savedweapon_tactical = self get_player_tactical_grenade();
+		if ( isDefined( self.grief_savedweapon_tactical ) )
+		{
+			self.grief_savedweapon_tactical_clip = self getweaponammoclip( self.grief_savedweapon_tactical );
+		}
+		for ( i = 0; i < self.grief_savedweapon_weapons.size; i++ )
+		{
+			self.grief_savedweapon_weaponsammo_clip[ i ] = self getweaponammoclip( self.grief_savedweapon_weapons[ i ] );
+			self.grief_savedweapon_weaponsammo_stock[ i ] = self getweaponammostock( self.grief_savedweapon_weapons[ i ] );
+		}
+		if ( isDefined( self.hasriotshield ) && self.hasriotshield )
+		{
+			self.grief_hasriotshield = 1;
+		}
+		if ( self hasweapon( "claymore_zm" ) )
+		{
+			self.grief_savedweapon_claymore = 1;
+			self.grief_savedweapon_claymore_clip = self getweaponammoclip( "claymore_zm" );
+		}
+		if ( isDefined( self.current_equipment ) )
+		{
+			self.grief_savedweapon_equipment = self.current_equipment;
+		}
+		wait 1;
+	}
+}
+
+restore_player_loadout()
+{
+	if ( !isDefined( self.grief_savedweapon_weapons ) )
+	{
+		return 0;
+	}
+	primary_weapons_returned = 0;
+	i = 0;
+	while ( i < self.grief_savedweapon_weapons.size )
+	{
+		if ( isdefined( self.grief_savedweapon_grenades ) && self.grief_savedweapon_weapons[ i ] == self.grief_savedweapon_grenades || ( isdefined( self.grief_savedweapon_tactical ) && self.grief_savedweapon_weapons[ i ] == self.grief_savedweapon_tactical ) )
+		{
+			i++;
+			continue;
+		}
+		if ( isweaponprimary( self.grief_savedweapon_weapons[ i ] ) )
+		{
+			if ( primary_weapons_returned >= 2 )
+			{
+				i++;
+				continue;
+			}
+			primary_weapons_returned++;
+		}
+		if ( "item_meat_zm" == self.grief_savedweapon_weapons[ i ] )
+		{
+			i++;
+			continue;
+		}
+		self giveweapon( self.grief_savedweapon_weapons[ i ], 0, self maps/mp/zombies/_zm_weapons::get_pack_a_punch_weapon_options( self.grief_savedweapon_weapons[ i ] ) );
+		if ( isdefined( self.grief_savedweapon_weaponsammo_clip[ index ] ) )
+		{
+			self setweaponammoclip( self.grief_savedweapon_weapons[ i ], self.grief_savedweapon_weaponsammo_clip[ index ] );
+		}
+		if ( isdefined( self.grief_savedweapon_weaponsammo_stock[ index ] ) )
+		{
+			self setweaponammostock( self.grief_savedweapon_weapons[ i ], self.grief_savedweapon_weaponsammo_stock[ index ] );
+		}
+		i++;
+	}
+	if ( isDefined( self.grief_savedweapon_grenades ) )
+	{
+		self giveweapon( self.grief_savedweapon_grenades );
+		if ( isDefined( self.grief_savedweapon_grenades_clip ) )
+		{
+			self setweaponammoclip( self.grief_savedweapon_grenades, self.grief_savedweapon_grenades_clip );
+		}
+	}
+	if ( isDefined( self.grief_savedweapon_tactical ) )
+	{
+		self giveweapon( self.grief_savedweapon_tactical );
+		if ( isDefined( self.grief_savedweapon_tactical_clip ) )
+		{
+			self setweaponammoclip( self.grief_savedweapon_tactical, self.grief_savedweapon_tactical_clip );
+		}
+	}
+	if ( isDefined( self.current_equipment ) )
+	{
+		self maps/mp/zombies/_zm_equipment::equipment_take( self.current_equipment );
+	}
+	if ( isDefined( self.grief_savedweapon_equipment ) )
+	{
+		self.do_not_display_equipment_pickup_hint = 1;
+		self maps/mp/zombies/_zm_equipment::equipment_give( self.grief_savedweapon_equipment );
+		self.do_not_display_equipment_pickup_hint = undefined;
+	}
+	if ( isDefined( self.grief_hasriotshield ) && self.grief_hasriotshield )
+	{
+		if ( isDefined( self.player_shield_reset_health ) )
+		{
+			self [[ self.player_shield_reset_health ]]();
+		}
+	}
+	if ( isDefined( self.grief_savedweapon_claymore ) && self.grief_savedweapon_claymore )
+	{
+		self giveweapon( "claymore_zm" );
+		self set_player_placeable_mine( "claymore_zm" );
+		self setactionslot( 4, "weapon", "claymore_zm" );
+		self setweaponammoclip( "claymore_zm", self.grief_savedweapon_claymore_clip );
+	}
+	primaries = self getweaponslistprimaries();
+	foreach ( weapon in primaries )
+	{
+		if ( isDefined( self.grief_savedweapon_currentweapon ) && self.grief_savedweapon_currentweapon == weapon )
+		{
+			self switchtoweapon( weapon );
+			return 1;
+		}
+	}
+	if ( primaries.size > 0 )
+	{
+		self switchtoweapon( primaries[ 0 ] );
+		return 1;
+	}
+	return 0;
 }
