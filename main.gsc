@@ -643,6 +643,7 @@ end_game_custom() //checked changed to match cerberus output
 }
 */
 
+//callback_playerkilled( einflictor, attacker, idamage, smeansofdeath, sweapon, vdir, shitloc, psoffsettime, deathanimduration )
 actor_killed_override( einflictor, attacker, idamage, smeansofdeath, sweapon, vdir, shitloc, psoffsettime ) //checked matches cerberus output
 {
 	if ( isDefined( game[ "state" ] ) && game[ "state" ] == "postgame" )
