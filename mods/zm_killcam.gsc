@@ -186,6 +186,7 @@ killcam( attackernum, targetnum, killcamentity, killcamentityindex, killcamentit
 	}
 	killcamoffset = camtime + predelay;
 	self notify( "begin_killcam", getTime() );
+	self overlay( true, attacker, false );
 	killcamstarttime = getTime() - ( killcamoffset * 1000 );
 	self.sessionstate = "spectator";
 	self.spectatorclient = attackernum;
@@ -234,6 +235,7 @@ killcam( attackernum, targetnum, killcamentity, killcamentityindex, killcamentit
 	self waittill( "end_killcam" );
 	self endkillcam( 0 );
 	self setclientuivisibilityflag( "hud_visible", 1 );
+	self overlay( false );
 	self.sessionstate = "specator";
     //self.sessionstate = "dead";
 	self.spectatorclient = -1;
@@ -785,6 +787,8 @@ overlay(on, attacker, final) {
 		{
 			self.hud[ i ].foreground = true;
 			self.hud[ i ].hidewhendead = false;
+			self.hud[ i ].hidewheninkillcam = false;
+			self.hud[ i ].archived = false;
 		}
     } else {
         self.hud[0] destroy();
