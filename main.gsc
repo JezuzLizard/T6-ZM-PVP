@@ -49,11 +49,12 @@ init() //checked matches cerberus output
 	level.callbackplayerlaststand = undefined;
 	level.spawnclient = ::spawnclient;
     level thread on_player_connect();
-	level.no_end_game_check = 1;
+	level.no_end_game_check = 0;
 	level thread doFinalKillcam();
 	level thread open_seseme();
-	//level thread end_game_custom();
-	//maps\mp\gametypes_zm\_globallogic_utils::registerPostRoundEvent(::postRoundFinalKillcam);
+
+	maps\mp\gametypes_zm\_globallogic_utils::registerPostRoundEvent(::postRoundFinalKillcam);
+
 	AddTestClient();
 
 	// hitmarker mod
@@ -102,21 +103,17 @@ end_game_bind()
 	level endon("game_emded");
 	for(;;) {
 		if (self ActionSlotOneButtonPressed()) {
-			self iprintln("called endgame");
-
-			// remember its only the mp one but i've added zombie elements into it
-
 			level thread customendgame(self, "Idk");
 			wait 0.02;
 		}
 		if (self ActionSlotTwoButtonPressed()) {
 			self iprintln("overlay attempted");
 			if (!self.overlayOn) {
-				self thread overlay(true, self, true);
+				//level overlay(true, self, true);
 				self setClientUIVisibilityFlag( "hud_visible", 0 );
 				self.overlayOn = true;
 			} else {
-				self thread overlay(false);
+				//level overlay(false);
 				self setClientUIVisibilityFlag( "hud_visible", 1 );
 				self.overlayOn = false;
 			}
@@ -405,21 +402,6 @@ customendgame(winner, reason)
 	if ( ( !isDefined( level.skipGameEnd ) || !level.skipGameEnd ) && IsDefined( winner ) )
 		maps\mp\gametypes_zm\_globallogic::displayGameEnd( winner, endReasonText );
 	
-	postroundfinalkillcam();
-
-	if ( isOneRound() )
-	{
-		maps\mp\gametypes_zm\_globallogic_utils::executePostRoundEvents();
-	}
-		
-	level.intermission = true;
-
-	/*
-
-	trying to recreate zm endgame using mp func ;)
-	this is the GAME OVER hud and others
-
-	*/
 	players = get_players();
 	if ( !isDefined( level._supress_survived_screen ) )
 	{
@@ -441,7 +423,15 @@ customendgame(winner, reason)
 		}
 	}
 
-	// ends here
+	//postroundfinalkillcam();
+	//level waittill("final_killcam_done");
+
+	if ( isOneRound() )
+	{
+		maps\mp\gametypes_zm\_globallogic_utils::executePostRoundEvents();
+	}
+		
+	level.intermission = true;
 	
 	SetMatchTalkFlag( "EveryoneHearsEveryone", 1 );
 
@@ -462,186 +452,9 @@ customendgame(winner, reason)
 	//Eckert - Fading out sound
 	level notify ( "sfade");
 	logString( "game ended" );
-	
-	//postroundfinalkillcam();
-	//level waittill("final_killcam_done");
-	
+
 	exitLevel( false );
 } 
-
-/* testing */
-/*
-end_game_custom() //checked changed to match cerberus output
-{
-	level waittill("end_game_custom");
-	check_end_game_intermission_delay();
-	clientnotify( "zesn" );
-	if ( isDefined( level.sndgameovermusicoverride ) )
-	{
-		level thread maps/mp/zombies/_zm_audio::change_zombie_music( level.sndgameovermusicoverride );
-	}
-	else
-	{
-		level thread maps/mp/zombies/_zm_audio::change_zombie_music( "game_over" );
-	}
-	players = get_players();
-	for ( i = 0; i < players.size; i++ )
-	{
-		setclientsysstate( "lsm", "0", players[ i ] );
-	}
-	for ( i = 0; i < players.size; i++ )
-	{
-		if ( players[ i ] player_is_in_laststand() )
-		{
-			players[ i ] recordplayerdeathzombies();
-			players[ i ] maps/mp/zombies/_zm_stats::increment_player_stat( "deaths" );
-			players[ i ] maps/mp/zombies/_zm_stats::increment_client_stat( "deaths" );
-			players[ i ] maps/mp/zombies/_zm_pers_upgrades_functions::pers_upgrade_jugg_player_death_stat();
-		}
-		if ( isdefined( players[ i ].revivetexthud) )
-		{
-			players[ i ].revivetexthud destroy();
-		}
-	}
-	stopallrumbles();
-	level.intermission = 1;
-	level.zombie_vars[ "zombie_powerup_insta_kill_time" ] = 0;
-	level.zombie_vars[ "zombie_powerup_fire_sale_time" ] = 0;
-	level.zombie_vars[ "zombie_powerup_point_doubler_time" ] = 0;
-	wait 0.1;
-	game_over = [];
-	survived = [];
-	players = get_players();
-	setmatchflag( "disableIngameMenu", 1 );
-	foreach ( player in players )
-	{
-		player closemenu();
-		player closeingamemenu();
-	}
-	if ( !isDefined( level._supress_survived_screen ) )
-	{
-		for ( i = 0; i < players.size; i++ )
-		{
-			if ( isDefined( level.custom_game_over_hud_elem ) )
-			{
-				game_over[ i ] = [[ level.custom_game_over_hud_elem ]]( players[ i ] );
-			}
-			else
-			{
-				game_over[ i ] = newclienthudelem( players[ i ] );
-				game_over[ i ].alignx = "center";
-				game_over[ i ].aligny = "middle";
-				game_over[ i ].horzalign = "center";
-				game_over[ i ].vertalign = "middle";
-				game_over[ i ].y -= 130;
-				game_over[ i ].foreground = 1;
-				game_over[ i ].fontscale = 3;
-				game_over[ i ].alpha = 0;
-				game_over[ i ].color = ( 1, 1, 1 );
-				game_over[ i ].hidewheninmenu = 1;
-				game_over[ i ] settext( &"ZOMBIE_GAME_OVER" );
-				game_over[ i ] fadeovertime( 1 );
-				game_over[ i ].alpha = 1;
-			}
-			survived[ i ] = newclienthudelem( players[ i ] );
-			survived[ i ].alignx = "center";
-			survived[ i ].aligny = "middle";
-			survived[ i ].horzalign = "center";
-			survived[ i ].vertalign = "middle";
-			survived[ i ].y -= 100;
-			survived[ i ].foreground = 1;
-			survived[ i ].fontscale = 2;
-			survived[ i ].alpha = 0;
-			survived[ i ].color = ( 1, 1, 1 );
-			survived[ i ].hidewheninmenu = 1;
-			if ( level.round_number < 2 )
-			{
-				if ( level.script == "zombie_moon" )
-				{
-					if ( !isDefined( level.left_nomans_land ) )
-					{
-						nomanslandtime = level.nml_best_time;
-						player_survival_time = int( nomanslandtime / 1000 );
-						player_survival_time_in_mins = maps/mp/zombies/_zm::to_mins( player_survival_time );
-						survived[ i ] settext( &"ZOMBIE_SURVIVED_NOMANS", player_survival_time_in_mins );
-					}
-					else if ( level.left_nomans_land == 2 )
-					{
-						survived[ i ] settext( &"ZOMBIE_SURVIVED_ROUND" );
-					}
-				}
-				else
-				{
-					survived[ i ] settext( &"ZOMBIE_SURVIVED_ROUND" );
-				}
-			}
-			else
-			{
-				survived[ i ] settext( &"ZOMBIE_SURVIVED_ROUNDS", level.round_number );
-			}
-			survived[ i ] fadeovertime( 1 );
-			survived[ i ].alpha = 1;
-		}
-	}
-	if ( isDefined( level.custom_end_screen ) )
-	{
-		level [[ level.custom_end_screen ]]();
-	}
-	for ( i = 0; i < players.size; i++ )
-	{
-		players[ i ] setclientammocounterhide( 1 );
-		players[ i ] setclientminiscoreboardhide( 1 );
-	}
-	uploadstats();
-	maps/mp/zombies/_zm_stats::update_players_stats_at_match_end( players );
-	maps/mp/zombies/_zm_stats::update_global_counters_on_match_end();
-	wait 1;
-	wait 3.95;
-	players = get_players();
-	foreach ( player in players )
-	{
-		if ( isdefined( player.sessionstate ) && player.sessionstate == "spectator" )
-		{
-			player.sessionstate = "playing";
-		}
-	}
-	wait 0.05;
-	players = get_players();
-	if ( !isDefined( level._supress_survived_screen ) )
-	{
-		for(i = 0; i < players.size; i++)
-		{
-			survived[ i ] destroy();
-			game_over[ i ] destroy();
-		}
-	}
-	for ( i = 0; i < players.size; i++ )
-	{
-		if ( isDefined( players[ i ].survived_hud ) )
-		{
-			players[ i ].survived_hud destroy();
-		}
-		if ( isDefined( players[ i ].game_over_hud ) )
-		{
-			players[ i ].game_over_hud destroy();
-		}
-	}
-
-	maps\mp\zombies\_zm::intermission();
-	wait level.zombie_vars[ "zombie_intermission_time" ];
-	level notify( "stop_intermission" );
-	array_thread( get_players(), ::player_exit_level );
-	bbprint( "zombie_epilogs", "rounds %d", level.round_number );
-	wait 1.5;
-	players = get_players();
-	for ( i = 0; i < players.size; i++ )
-	{
-		players[ i ] cameraactivate( 0 );
-	}
-	exitlevel( 0 );
-	wait 666;
-}
-*/
 
 //callback_playerkilled( einflictor, attacker, idamage, smeansofdeath, sweapon, vdir, shitloc, psoffsettime, deathanimduration )
 actor_killed_override( einflictor, attacker, idamage, smeansofdeath, sweapon, vdir, shitloc, psoffsettime ) //checked matches cerberus output
@@ -696,12 +509,155 @@ actor_killed_override( einflictor, attacker, idamage, smeansofdeath, sweapon, vd
 	{
 		self [[ self.actor_killed_override ]]( einflictor, attacker, idamage, smeansofdeath, sweapon, vdir, shitloc, psoffsettime );
 	}
+
+	/* 
+	
+	my attempt to do actor killcams :) - mikey
+	detected the actor, killcam played but didn't get put into the replay. slomo still occured though, so i assume it played
+	pressing random buttons on your mouse and scrollwheel after the GAME OVER text disappears seems to force you in a killcam of some sort
+
+	*/
+	if ( isplayer( attacker ) )
+	{
+		lpattackguid = attacker getguid();
+		lpattackname = attacker.name;
+		lpattackteam = attacker.team;
+		lpattackorigin = attacker.origin;
+		if ( attacker == self || assistedsuicide == 1 )
+		{
+			dokillcam = 0;
+			wassuicide = 1;
+			//awardassists = self playerkilled_suicide( einflictor, attacker, smeansofdeath, sweapon, shitloc );
+		}
+		else
+		{
+			pixbeginevent( "PlayerKilled attacker" );
+			lpattacknum = attacker getentitynumber();
+			dokillcam = 1;
+			if ( level.teambased && self.team == attacker.team && smeansofdeath == "MOD_GRENADE" && level.friendlyfire == 0 )
+			{
+			}
+			else if ( level.teambased && self.team == attacker.team )
+			{
+				wasteamkill = 1;
+				//self playerkilled_teamkill( einflictor, attacker, smeansofdeath, sweapon, shitloc );
+			}
+			else
+			{
+				//self playerkilled_kill( einflictor, attacker, smeansofdeath, sweapon, shitloc );
+				if ( level.teambased )
+				{
+					awardassists = 1;
+				}
+			}
+			pixendevent();
+		}
+	}
+	else if ( isDefined( attacker ) && attacker.classname == "trigger_hurt" || attacker.classname == "worldspawn" )
+	{
+		dokillcam = 0;
+		lpattacknum = -1;
+		lpattackguid = "";
+		lpattackname = "";
+		lpattackteam = "world";
+		self maps/mp/gametypes_zm/_globallogic_score::incpersstat( "suicides", 1 );
+		self.suicides = self maps/mp/gametypes_zm/_globallogic_score::getpersstat( "suicides" );
+		self.suicide = 1;
+		awardassists = 1;
+	}
+	else
+	{
+		dokillcam = 0;
+		lpattacknum = -1;
+		lpattackguid = "";
+		lpattackname = "";
+		lpattackteam = "world";
+		wassuicide = 1;
+		if ( isDefined( einflictor ) && isDefined( einflictor.killcament ) )
+		{
+			dokillcam = 1;
+			lpattacknum = self getentitynumber();
+			wassuicide = 0;
+		}
+		if ( isDefined( attacker ) && isDefined( attacker.team ) && isDefined( level.teams[ attacker.team ] ) )
+		{
+			if ( attacker.team != self.team )
+			{
+				if ( level.teambased )
+				{
+					maps/mp/gametypes_zm/_globallogic_score::giveteamscore( "kill", attacker.team, attacker, self );
+				}
+				wassuicide = 0;
+			}
+		}
+		awardassists = 1;
+	}
+	dokillcam = 1;
+	lpattacknum = self getentitynumber();
+	wassuicide = 0;
+	killcamentity = self getkillcamentity( attacker, einflictor, sweapon );
+	killcamentityindex = -1;
+	killcamentitystarttime = 0;
+	if ( isDefined( killcamentity ) )
+	{
+		killcamentityindex = killcamentity getentitynumber();
+		if ( isDefined( killcamentity.starttime ) )
+		{
+			killcamentitystarttime = killcamentity.starttime;
+		}
+		else
+		{
+			killcamentitystarttime = killcamentity.birthtime;
+		}
+		if ( !isDefined( killcamentitystarttime ) )
+		{
+			killcamentitystarttime = 0;
+		}
+	}
+	if ( isDefined( self.killstreak_waitamount ) && self.killstreak_waitamount > 0 )
+	{
+		dokillcam = 0;
+	}
+	died_in_vehicle = 0;
+	if ( isDefined( self.diedonvehicle ) )
+	{
+		died_in_vehicle = self.diedonvehicle;
+	}
+	hit_by_train = 0;
+	if ( isDefined( attacker ) && isDefined( attacker.targetname ) && attacker.targetname == "train" )
+	{
+		hit_by_train = 1;
+	}
+	if ( hit_by_train )
+	{
+		if ( killcamentitystarttime > ( self.deathtime - 2500 ) )
+		{
+			dokillcam = 0;
+		}
+	}
+	self.deathtime = getTime();
+	deathtimeoffset = 0;
+	perks = [];
+	self.lastattacker = attacker;
+	self.lastdeathpos = self.origin;
+	level thread recordkillcamsettings( lpattacknum, self getentitynumber(), sweapon, self.deathtime, deathtimeoffset, psoffsettime, killcamentityindex, killcamentitystarttime, perks, attacker );
+	self thread cancelkillcamonuse();
+	//self thread killcam( lpattacknum, self getentitynumber(), killcamentity, killcamentityindex, killcamentitystarttime, sweapon, self.deathtime, deathtimeoffset, psoffsettime, 0, maps/mp/gametypes_zm/_globallogic_utils::timeuntilroundend(), perks, attacker );
+	self thread sendtoplayers("^8" + attacker.name + " killed ^9Zombie");
+
+	// do we need this?
 	/*
 	if ( isDefined( self.deathfunction ) ) //added from bo3 _zm.gsc
 	{
 		self [[ self.deathfunction ]]( eInflictor, attacker, idamage, smeansofdeath, sweapon, vdir, shitloc, psoffsettime );
 	}
 	*/
+}
+
+sendtoplayers(msg)
+{
+	foreach (player in level.players)
+		player iprintln(msg);
 }
 
 round_wait() //checked changed to match cerberus output

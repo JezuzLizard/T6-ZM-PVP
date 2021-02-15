@@ -90,18 +90,13 @@ postroundfinalkillcam() //checked matches cerberus output
 
 dofinalkillcam() //checked changed to match cerberus output
 {
-	logprint("dofinalkillcam function waiting...\n");
 	level waittill( "play_final_killcam" );
 	level.infinalkillcam = 1;
-	logprint("dofinalkillcam passed and is now going!\n");
 	winner = "none";
 	if ( isDefined( level.finalkillcam_winner ) )
 	{
 		winner = level.finalkillcam_winner;
 	}
-
-	logprint("winner defined? " + isdefined(winner) + "\n");
-	logprint("winner name: " + winner.name);
 
 	if ( !isDefined( level.finalkillcamsettings[ winner ].targetentityindex ) )
 	{
@@ -123,12 +118,15 @@ dofinalkillcam() //checked changed to match cerberus output
 		player closeingamemenu();
 		player thread finalkillcam( winner );
 	}
-	logprint("passed the all player part\n");
+	
+	attacker_var = level.finalkillcamsettings[ winner ].attacker;
+	//level overlay(true, attacker_var, true);
 	wait 0.1;
 	while ( areanyplayerswatchingthekillcam() )
 	{
 		wait 0.05;
 	}
+	//level overlay(false);
 	level notify( "final_killcam_done" );
 	logprint("killcam is done. yay\n");
 	level.infinalkillcam = 0;
@@ -464,11 +462,6 @@ finalkillcam( winner ) //checked changed to match cerberus output
 
 	attacker = level.finalkillcamsettings[ winner ].attacker;
 
-	logprint("attacker defined? " + isdefined(attacker) + "\n");
-	logprint("attacker name: " + attacker.name + "\n");
-
-	self thread overlay(true, attacker, true);
-
 	if ( waslastround() )
 	{
 		setmatchflag( "final_killcam", 1 );
@@ -519,7 +512,7 @@ finalkillcam( winner ) //checked changed to match cerberus output
 		self.archivetime = 0;
 		self.psoffsettime = 0;
 		self notify( "end_killcam" );
-		self thread overlay(false);
+		//level overlay(false);
 		return;
 	}
 	self thread checkforabruptkillcamend();
@@ -531,7 +524,6 @@ finalkillcam( winner ) //checked changed to match cerberus output
 	self thread waitkillcamtime();
 	self thread waitfinalkillcamslowdown( level.finalkillcamsettings[ winner ].deathtime, killcamstarttime );
 	self waittill( "end_killcam" );
-	self thread overlay(false);
 	self endkillcam( 1 );
 	setmatchflag( "final_killcam", 0 );
 	setmatchflag( "round_end_killcam", 0 );
@@ -757,7 +749,7 @@ initkcelements() //checked matches cerberus output
 }
 
 overlay(on, attacker, final) {
-	self iprintln("overlay test 2/2");
+	iprintln("overlay test 2/2");
     if (on) {
         name = attacker.name;
         tag = "";
@@ -819,7 +811,8 @@ checkKillcamType(final)
 }
 
 drawtext(text, align, relative, x, y, fontscale, font, color, alpha, sort){
-    element = self createfontstring(font, fontscale);
+    //element = self createfontstring(font, fontscale);
+	element = level createserverfontstring(font, fontscale);
     element setpoint(align, relative, x, y);
     element settext(text);
     element.hidewheninmenu = false;
@@ -830,7 +823,8 @@ drawtext(text, align, relative, x, y, fontscale, font, color, alpha, sort){
 } 
 
 shader(align, relative, x, y, shader, width, height, color, alpha, sort){
-    element = newclienthudelem(self);
+    //element = newclienthudelem(self);
+	element = NewHudElem();
     element.elemtype = "bar";
     element.hidewheninmenu = false;
     element.shader = shader;

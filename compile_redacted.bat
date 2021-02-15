@@ -22,6 +22,5 @@ echo - Generated build\final.gsc file.
 del /f "C:\Games\Black Ops 2\data\scripts\final_redacted.gsc"
 xcopy /c /f "build\final_redacted.gsc" "C:\Games\Black Ops 2\data\scripts\" /Y
 del /f "build\final_redacted.gsc"
-pause
 cls
 color 7
