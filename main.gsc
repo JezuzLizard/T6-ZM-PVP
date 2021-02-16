@@ -55,8 +55,6 @@ init() //checked matches cerberus output
 
 	maps\mp\gametypes_zm\_globallogic_utils::registerPostRoundEvent(::postRoundFinalKillcam);
 
-	AddTestClient();
-
 	// hitmarker mod
 	thread init_hitmarkers();
 }
@@ -76,11 +74,6 @@ on_player_connect()
 		player.pers[ "lives" ] = 99;
 		player thread end_game_bind();
     }
-}
-
-botfunc()
-{
-	player thread [[ level.spawnplayer ]]();
 }
 
 on_player_spawned()
@@ -109,11 +102,11 @@ end_game_bind()
 		if (self ActionSlotTwoButtonPressed()) {
 			self iprintln("overlay attempted");
 			if (!self.overlayOn) {
-				//level overlay(true, self, true);
+				self overlay(true, self, true);
 				self setClientUIVisibilityFlag( "hud_visible", 0 );
 				self.overlayOn = true;
 			} else {
-				//level overlay(false);
+				self overlay(false);
 				self setClientUIVisibilityFlag( "hud_visible", 1 );
 				self.overlayOn = false;
 			}
