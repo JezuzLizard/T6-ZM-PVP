@@ -48,6 +48,10 @@ init() //checked matches cerberus output
     level.playerlaststand_func = undefined;
 	level.callbackplayerlaststand = undefined;
 	level.spawnclient = ::spawnclient;
+	level.spawnplayer = ::spawnplayer;
+	level.spawnspectator = ::spawnspectator;
+	level.allies = ::menuallieszombies;
+	level.spawnclient = ::spawnclient;
     level thread on_player_connect();
 	level.no_end_game_check = 0;
 	level thread doFinalKillcam();
@@ -64,14 +68,14 @@ on_player_connect()
     for(;;)
 	{
         level waittill("connected", player);
-
+		player thread check_for_end_respawn();
 		player thread [[ level.spawnplayer ]]();
 
 		player thread on_player_spawned();
-		player thread save_player_loadout();
+		//player thread save_player_loadout();
 		player.overlayOn = false;
         player set_team();
-		player.pers[ "lives" ] = 99;
+		player.pers[ "lives" ] = 9999;
 		player thread end_game_bind();
     }
 }
@@ -84,7 +88,7 @@ on_player_spawned()
     for(;;)
     {
         self waittill("spawned_player");
-		self restore_player_loadout();
+		//self restore_player_loadout();
 		self.score += 5000;
 	}
 }
