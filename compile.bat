@@ -4,7 +4,7 @@ color 2
 echo.
 echo - Starting compiling process...
 
-set numberOf=3
+set numberOf=4
 if exist "build" (
     echo - \build directory already exists, continuing...
 ) else (
@@ -18,6 +18,8 @@ echo - Adding file 2/%numberOf%
 type "mods\zm_killcam.gsc" >> "build\final.gsc"
 echo - Adding file 3/%numberOf%
 type "mods\zm_pvp.gsc" >> "build\final.gsc"
+echo - Adding file 4/%numberOf%
+type "mods\zm_player_spawning.gsc" >> "build\final.gsc"
 echo - Generated build\final.gsc file.
 timeout /t 2 /nobreak > NUL
 
