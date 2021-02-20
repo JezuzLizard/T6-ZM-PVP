@@ -12,8 +12,6 @@ spawnclient( timealreadypassed )
 	}
 	if ( self.waitingtospawn )
 	{
-		logline1 = "Player already waiting to spawn" + "\n";
-		logprint( logline1 );
 		pixendevent();
 		return;
 	}
@@ -480,8 +478,6 @@ spawnplayer() //checked matches cerberus output dvars taken from beta dump
 	}
 	pixendevent();
 	waittillframeend;
-	logline1 = self.name + " spawned " + "\n";
-	logprint( logline1 ); 
 	self notify( "spawned_player" );
 	self logstring( "S " + self.origin[ 0 ] + " " + self.origin[ 1 ] + " " + self.origin[ 2 ] );
 	setdvar( "scr_selecting_location", "" );
@@ -584,8 +580,16 @@ check_for_end_respawn()
 	while ( true )
 	{
 		self waittill( "end_respawn", who_ended );
-		logline1 = "check_for_end_respawn() " + who_ended + " " + self.name + "\n";
-		logprint( logline1 );
+        if ( isDefined( who_ended ) )
+        {
+		    logline1 = "check_for_end_respawn() " + who_ended + " " + self.name + "\n";
+		    logprint( logline1 );
+        }
+        else 
+        {
+            logline1 = "check_for_end_respawn() notify parameter is undefined" + "\n";
+		    logprint( logline1 );
+        }
 	}
 }
 
@@ -602,4 +606,282 @@ custommayspawn() //checked matches cerberus output
 		return 0;
 	}
 	return 1;
+}
+
+zombify_player() //checked matches cerberus output
+{
+	self maps/mp/zombies/_zm_score::player_died_penalty();
+	bbprint( "zombie_playerdeaths", "round %d playername %s deathtype %s x %f y %f z %f", level.round_number, self.name, "died", self.origin );
+	self recordplayerdeathzombies();
+	if ( isDefined( level.deathcard_spawn_func ) )
+	{
+		self [[ level.deathcard_spawn_func ]]();
+	}
+	if ( !isDefined( level.zombie_vars[ "zombify_player" ] ) || !level.zombie_vars[ "zombify_player" ] )
+	{
+		self thread spawnspectatorzm();
+		return;
+	}
+	self.ignoreme = 1;
+	self.is_zombie = 1;
+	self.zombification_time = getTime();
+	self.team = level.zombie_team;
+	self notify( "zombified" );
+	if ( isDefined( self.revivetrigger ) )
+	{
+		self.revivetrigger delete();
+	}
+	self.revivetrigger = undefined;
+	self setmovespeedscale( 0.3 );
+	self reviveplayer();
+	self takeallweapons();
+	self giveweapon( "zombie_melee", 0 );
+	self switchtoweapon( "zombie_melee" );
+	self disableweaponcycling();
+	self disableoffhandweapons();
+	setclientsysstate( "zombify", 1, self );
+	self thread maps/mp/zombies/_zm_spawner::zombie_eye_glow();
+	self thread playerzombie_player_damage();
+	self thread playerzombie_soundboard();
+}
+
+spawnspectatorzm() //checked matches cerberus output
+{
+	self endon( "disconnect" );
+	self endon( "spawned_spectator" );
+	self notify( "spawned" );
+	self notify( "end_respawn", "spawnspectatorzm" );
+	if ( level.intermission )
+	{
+		return;
+	}
+	if ( is_true( level.no_spectator ) )
+	{
+		wait 3;
+		exitlevel();
+	}
+	self.is_zombie = 1;
+	level thread failsafe_revive_give_back_weapons( self );
+	self notify( "zombified" );
+	if ( isDefined( self.revivetrigger ) )
+	{
+		self.revivetrigger delete();
+		self.revivetrigger = undefined;
+	}
+	self.zombification_time = getTime();
+	resettimeout();
+	self stopshellshock();
+	self stoprumble( "damage_heavy" );
+	self.sessionstate = "spectator";
+	self.spectatorclient = -1;
+	self.maxhealth = self.health;
+	self.shellshocked = 0;
+	self.inwater = 0;
+	self.friendlydamage = undefined;
+	self.hasspawned = 1;
+	self.spawntime = getTime();
+	self.afk = 0;
+	self detachall();
+	if ( isDefined( level.custom_spectate_permissions ) )
+	{
+		self [[ level.custom_spectate_permissions ]]();
+	}
+	else
+	{
+		self setspectatepermissions( 1 );
+	}
+	self thread spectator_thread();
+	self spawn( self.origin, self.angles );
+	self notify( "spawned_spectator" );
+}
+
+menuautoassign( comingfrommenu ) //checked changed to match cerberus output
+{
+	teamkeys = getarraykeys( level.teams );
+	assignment = teamkeys[ randomint( teamkeys.size ) ];
+	self closemenus();
+	if ( is_true( level.forceallallies ) )
+	{
+		assignment = "allies";
+	}
+	else if ( level.teambased )
+	{
+		if ( getDvarInt( "party_autoteams" ) == 1 )
+		{
+			if ( level.allow_teamchange == "1" || self.hasspawned && comingfrommenu )
+			{
+				assignment = "";
+			}
+		}
+		else
+		{
+			team = getassignedteam( self );
+			switch( team )
+			{
+				case 1:
+					assignment = teamkeys[ 1 ];
+					break;
+				case 2:
+					assignment = teamkeys[ 0 ];
+					break;
+				case 3:
+					assignment = teamkeys[ 2 ];
+					break;
+				case 4:
+					if ( !isDefined( level.forceautoassign ) || !level.forceautoassign )
+					{
+						self setclientscriptmainmenu( game[ "menu_class" ] );
+						return;
+					}
+				default:
+					assignment = "";
+					if ( isDefined( level.teams[ team ] ) )
+					{
+						assignment = team;
+					}
+					else if ( team == "spectator" && !level.forceautoassign )
+					{
+						self setclientscriptmainmenu( game[ "menu_class" ] );
+						return;
+					}
+			}
+		}
+		if ( assignment == "" || getDvarInt( "party_autoteams" ) == 0 )
+		{
+			if ( sessionmodeiszombiesgame() )
+			{
+				assignment = "allies";
+			}
+		}
+		if ( assignment == self.pers[ "team" ] && self.sessionstate == "playing" || self.sessionstate == "dead" )
+		{
+			self beginclasschoice();
+			return;
+		}
+	}
+	else if ( getDvarInt( "party_autoteams" ) == 1 )
+	{
+		if ( level.allow_teamchange != "1" || !self.hasspawned && !comingfrommenu )
+		{
+			team = getassignedteam( self );
+			if ( isDefined( level.teams[ team ] ) )
+			{
+				assignment = team;
+			}
+			else if ( team == "spectator" && !level.forceautoassign )
+			{
+				self setclientscriptmainmenu( game[ "menu_class" ] );
+				return;
+			}
+		}
+	}
+	if ( assignment != self.pers[ "team" ] && self.sessionstate == "playing" || self.sessionstate == "dead" )
+	{
+		self.switching_teams = 1;
+		self.joining_team = assignment;
+		self.leaving_team = self.pers[ "team" ];
+		self suicide();
+	}
+	self.pers[ "team" ] = assignment;
+	self.team = assignment;
+	self.pers["class"] = undefined;
+	self.class = undefined;
+	self.pers["weapon"] = undefined;
+	self.pers["savedmodel"] = undefined;
+	self updateobjectivetext();
+	if ( level.teambased )
+	{
+		self.sessionteam = assignment;
+	}
+	else
+	{
+		self.sessionteam = "none";
+		self.ffateam = assignment;
+	}
+	if ( !isalive( self ) )
+	{
+		self.statusicon = "hud_status_dead";
+	}
+	self notify( "joined_team" );
+	level notify( "joined_team" );
+	self notify( "end_respawn", "menuautoassign" );
+    logline1 = "menuautoassign notifies end_respawn for player " + self.name + "\n";
+    logprint( logline1 );
+	if ( ispregamegamestarted() )
+	{
+		if ( self is_bot() && isDefined( self.pers[ "class" ] ) )
+		{
+			pclass = self.pers[ "class" ];
+			self closemenu();
+			self closeingamemenu();
+			self.selectedclass = 1;
+			self [[ level.class ]]( pclass );
+			return;
+		}
+	}
+	self beginclasschoice();
+	self setclientscriptmainmenu( game[ "menu_class" ] );
+}
+
+
+menuteam( team ) //checked changed to match cerberus output
+{
+	self closemenus();
+	if ( !level.console && level.allow_teamchange == "0" && is_true( self.hasdonecombat ) )
+	{
+		return;
+	}
+	if ( self.pers[ "team" ] != team )
+	{
+		if ( level.ingraceperiod && !isDefined( self.hasdonecombat ) || !self.hasdonecombat )
+		{
+			self.hasspawned = 0;
+		}
+		if ( self.sessionstate == "playing" )
+		{
+			self.switching_teams = 1;
+			self.joining_team = team;
+			self.leaving_team = self.pers[ "team" ];
+			self suicide();
+		}
+		self.pers[ "team" ] = team;
+		self.team = team;
+		self.pers[ "class" ] = undefined;
+		self.class = undefined;
+		self.pers[ "weapon" ] = undefined;
+		self.pers[ "savedmodel" ] = undefined;
+		self updateobjectivetext();
+		if ( !level.rankedmatch && !level.leaguematch )
+		{
+			self.sessionstate = "spectator";
+		}
+		if ( level.teambased )
+		{
+			self.sessionteam = team;
+		}
+		else
+		{
+			self.sessionteam = "none";
+			self.ffateam = team;
+		}
+		self setclientscriptmainmenu( game[ "menu_class" ] );
+		self notify( "joined_team" );
+		level notify( "joined_team" );
+		self notify( "end_respawn", "menuteam" );
+	}
+	self beginclasschoice();
+}
+
+giveloadoutlevelspecific( team, class ) //checked matches cerberus output
+{
+	pixbeginevent( "giveLoadoutLevelSpecific" );
+	if ( isDefined( level.givecustomcharacters ) )
+	{
+		self [[ level.givecustomcharacters ]]();
+	}
+	if ( isDefined( level.givecustomloadout ) )
+	{
+		self [[ level.givecustomloadout ]]();
+	}
+	pixendevent();
 }
