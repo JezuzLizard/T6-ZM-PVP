@@ -30,7 +30,8 @@
 #include maps/mp/_gamerep;
 #include maps/mp/gametypes_zm/_persistence;
 #include maps/mp/zombies/_zm_utility;
-#include maps\mp\gametypes_zm\_hud_util;
+#include maps/mp/gametypes_zm/_hud_util;
+#include maps/mp/zombies/_zm;
 
 init() //checked matches cerberus output
 {
@@ -41,6 +42,7 @@ init() //checked matches cerberus output
 	precacheshader( "emblem_bg_default" );
 	level.killcam = getgametypesetting( "allowKillcam" );
 	level.finalkillcam = 1;
+	level.allow_zombie_killcams = getDvarIntDefault( "allow_zombie_killcams", 0 );
 	initfinalkillcam();
 	level.round_wait_func = ::round_wait;
 	level.callbackactorkilled = ::actor_killed_override;
@@ -51,9 +53,13 @@ init() //checked matches cerberus output
 	level.spawnplayer = ::spawnplayer;
 	level.spawnspectator = ::spawnspectator;
 	level.allies = ::menuallieszombies;
-	level.spawnclient = ::spawnclient;
+	level.mayspawn = ::custommayspawn;
+	level.player_becomes_zombie = ::zombify_player;
+	level.autoassign = ::menuautoassign;
+	level.teammenu = ::menuteam;
+	level.hotjoin_player_setup = undefined;
     level thread on_player_connect();
-	level.no_end_game_check = 0;
+	level.no_end_game_check = true;
 	level thread doFinalKillcam();
 	level thread open_seseme();
 
@@ -61,6 +67,7 @@ init() //checked matches cerberus output
 
 	// hitmarker mod
 	thread init_hitmarkers();
+	level.test_team_index = 0;
 }
 
 on_player_connect()
@@ -69,8 +76,7 @@ on_player_connect()
 	{
         level waittill("connected", player);
 		player thread check_for_end_respawn();
-		player thread [[ level.spawnplayer ]]();
-
+		//player thread [[ level.spawnplayer ]]();
 		player thread on_player_spawned();
 		//player thread save_player_loadout();
 		player.overlayOn = false;
@@ -127,21 +133,53 @@ end_game_bind()
 
 set_team()
 {
-	teamplayersallies = countplayers( "allies");
-	teamplayersaxis = countplayers( "axis");
-	if ( teamplayersallies > teamplayersaxis && !level.isresetting_grief )
+	/*
+	if ( level.test_team_index == 0 )
 	{
 		self.team = "axis";
 		self.sessionteam = "axis";
 	 	self.pers[ "team" ] = "axis";
 		self._encounters_team = "A";
 	}
-	else if ( teamplayersallies < teamplayersaxis && !level.isresetting_grief)
+	else if ( level.test_team_index == 1 )
 	{
 		self.team = "allies";
 		self.sessionteam = "allies";
 		self.pers[ "team" ] = "allies";
 		self._encounters_team = "B";
+	}
+	else 
+	{
+		if ( level.test_team_index < 3 )
+		{
+			level.test_team_index = 4;
+		}
+		self.team = "team" + level.test_team_index;
+		self.sessionteam = "team" + level.test_team_index;
+		self.pers[ "team" ] = "team" + level.test_team_index;
+		self._encounters_team = "B";
+	}
+	level.test_team_index++;
+	*/
+	teamplayersallies = countplayers( "allies");
+	teamplayersaxis = countplayers( "axis");
+	if ( teamplayersallies > teamplayersaxis )
+	{
+		self.team = "axis";
+		self.sessionteam = "axis";
+	 	self.pers[ "team" ] = "axis";
+		self._encounters_team = "A";
+		logline1 = self.name + " placed on the axis team" + "\n";
+		logprint( logline1 );
+	}
+	else if ( teamplayersallies < teamplayersaxis )
+	{
+		self.team = "allies";
+		self.sessionteam = "allies";
+		self.pers[ "team" ] = "allies";
+		self._encounters_team = "B";
+		logline1 = self.name + " placed on the allies team" + "\n";
+		logprint( logline1 );
 	}
 	else
 	{
@@ -149,6 +187,8 @@ set_team()
 		self.sessionteam = "allies";
 		self.pers[ "team" ] = "allies";
 		self._encounters_team = "B";
+		logline1 = self.name + " placed on the allies team because teams are equal" + "\n";
+		logprint( logline1 );
 	}
 }
 
@@ -506,92 +546,15 @@ actor_killed_override( einflictor, attacker, idamage, smeansofdeath, sweapon, vd
 	{
 		self [[ self.actor_killed_override ]]( einflictor, attacker, idamage, smeansofdeath, sweapon, vdir, shitloc, psoffsettime );
 	}
-
-	/* 
 	
-	my attempt to do actor killcams :) - mikey
-	detected the actor, killcam played but didn't get put into the replay. slomo still occured though, so i assume it played
-	pressing random buttons on your mouse and scrollwheel after the GAME OVER text disappears seems to force you in a killcam of some sort
+	attacker = updateattacker( attacker, sweapon );
+	einflictor = updateinflictor( einflictor );
 
-	*/
-	if ( isplayer( attacker ) )
-	{
-		lpattackguid = attacker getguid();
-		lpattackname = attacker.name;
-		lpattackteam = attacker.team;
-		lpattackorigin = attacker.origin;
-		if ( attacker == self || assistedsuicide == 1 )
-		{
-			dokillcam = 0;
-			wassuicide = 1;
-			//awardassists = self playerkilled_suicide( einflictor, attacker, smeansofdeath, sweapon, shitloc );
-		}
-		else
-		{
-			pixbeginevent( "PlayerKilled attacker" );
-			lpattacknum = attacker getentitynumber();
-			dokillcam = 1;
-			if ( level.teambased && self.team == attacker.team && smeansofdeath == "MOD_GRENADE" && level.friendlyfire == 0 )
-			{
-			}
-			else if ( level.teambased && self.team == attacker.team )
-			{
-				wasteamkill = 1;
-				//self playerkilled_teamkill( einflictor, attacker, smeansofdeath, sweapon, shitloc );
-			}
-			else
-			{
-				//self playerkilled_kill( einflictor, attacker, smeansofdeath, sweapon, shitloc );
-				if ( level.teambased )
-				{
-					awardassists = 1;
-				}
-			}
-			pixendevent();
-		}
+	if (!isPlayer(attacker) || !is_true( level.allow_zombie_killcams ) ) {
+		return;
 	}
-	else if ( isDefined( attacker ) && attacker.classname == "trigger_hurt" || attacker.classname == "worldspawn" )
-	{
-		dokillcam = 0;
-		lpattacknum = -1;
-		lpattackguid = "";
-		lpattackname = "";
-		lpattackteam = "world";
-		self maps/mp/gametypes_zm/_globallogic_score::incpersstat( "suicides", 1 );
-		self.suicides = self maps/mp/gametypes_zm/_globallogic_score::getpersstat( "suicides" );
-		self.suicide = 1;
-		awardassists = 1;
-	}
-	else
-	{
-		dokillcam = 0;
-		lpattacknum = -1;
-		lpattackguid = "";
-		lpattackname = "";
-		lpattackteam = "world";
-		wassuicide = 1;
-		if ( isDefined( einflictor ) && isDefined( einflictor.killcament ) )
-		{
-			dokillcam = 1;
-			lpattacknum = self getentitynumber();
-			wassuicide = 0;
-		}
-		if ( isDefined( attacker ) && isDefined( attacker.team ) && isDefined( level.teams[ attacker.team ] ) )
-		{
-			if ( attacker.team != self.team )
-			{
-				if ( level.teambased )
-				{
-					maps/mp/gametypes_zm/_globallogic_score::giveteamscore( "kill", attacker.team, attacker, self );
-				}
-				wassuicide = 0;
-			}
-		}
-		awardassists = 1;
-	}
-	dokillcam = 1;
-	lpattacknum = self getentitynumber();
-	wassuicide = 0;
+
+	// killcam here?
 	killcamentity = self getkillcamentity( attacker, einflictor, sweapon );
 	killcamentityindex = -1;
 	killcamentitystarttime = 0;
@@ -611,44 +574,44 @@ actor_killed_override( einflictor, attacker, idamage, smeansofdeath, sweapon, vd
 			killcamentitystarttime = 0;
 		}
 	}
-	if ( isDefined( self.killstreak_waitamount ) && self.killstreak_waitamount > 0 )
-	{
-		dokillcam = 0;
-	}
-	died_in_vehicle = 0;
-	if ( isDefined( self.diedonvehicle ) )
-	{
-		died_in_vehicle = self.diedonvehicle;
-	}
-	hit_by_train = 0;
-	if ( isDefined( attacker ) && isDefined( attacker.targetname ) && attacker.targetname == "train" )
-	{
-		hit_by_train = 1;
-	}
-	if ( hit_by_train )
-	{
-		if ( killcamentitystarttime > ( self.deathtime - 2500 ) )
-		{
-			dokillcam = 0;
-		}
-	}
+	lpattacknum = attacker getentitynumber();
+	dokillcam = 1;
+	willrespawnimmediately = 0;
 	self.deathtime = getTime();
 	deathtimeoffset = 0;
 	perks = [];
-	self.lastattacker = attacker;
-	self.lastdeathpos = self.origin;
 	level thread recordkillcamsettings( lpattacknum, self getentitynumber(), sweapon, self.deathtime, deathtimeoffset, psoffsettime, killcamentityindex, killcamentitystarttime, perks, attacker );
+	wait 0.05;
+	weaponclass = getweaponclasszm( sweapon );
+	self.cancelkillcam = 0;
 	self thread cancelkillcamonuse();
-	//self thread killcam( lpattacknum, self getentitynumber(), killcamentity, killcamentityindex, killcamentitystarttime, sweapon, self.deathtime, deathtimeoffset, psoffsettime, 0, maps/mp/gametypes_zm/_globallogic_utils::timeuntilroundend(), perks, attacker );
-	self thread sendtoplayers("^8" + attacker.name + " killed ^9Zombie");
-
-	// do we need this?
-	/*
-	if ( isDefined( self.deathfunction ) ) //added from bo3 _zm.gsc
+	defaultplayerdeathwatchtime = 1.75;
+	self.respawntimerstarttime = getTime();
+	self thread killcam( lpattacknum, self getentitynumber(), killcamentity, killcamentityindex, killcamentitystarttime, sweapon, self.deathtime, deathtimeoffset, psoffsettime, willrespawnimmediately, maps/mp/gametypes_zm/_globallogic_utils::timeuntilroundend(), perks, attacker );
+	if ( game[ "state" ] != "playing" )
 	{
-		self [[ self.deathfunction ]]( eInflictor, attacker, idamage, smeansofdeath, sweapon, vdir, shitloc, psoffsettime );
+		logline1 = "game state isn't playing" + "\n";
+		logprint( logline1 );
+		self.sessionstate = "dead";
+		self.spectatorclient = -1;
+		self.killcamtargetentity = -1;
+		self.killcamentity = -1;
+		self.archivetime = 0;
+		self.psoffsettime = 0;
+		return;
 	}
-	*/
+	userespawntime = 1;
+	if ( isDefined( level.hostmigrationtimer ) )
+	{
+		userespawntime = 0;
+	}
+	timepassed = undefined;
+	if ( isDefined( self.respawntimerstarttime ) && userespawntime )
+	{
+		timepassed = ( getTime() - self.respawntimerstarttime ) / 1000;
+	}
+	//self thread [[ level.spawnclient ]]( timepassed );
+	self.respawntimerstarttime = undefined;
 }
 
 sendtoplayers(msg)
