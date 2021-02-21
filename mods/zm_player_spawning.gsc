@@ -250,11 +250,6 @@ spawnplayer() //checked matches cerberus output dvars taken from beta dump
 	level notify( "player_spawned" );
 	self notify( "end_respawn", "spawnplayer" );
 	self setspawnvariables();
-	if ( !self.hasspawned )
-	{
-		self.underscorechance = 70;
-		self thread maps/mp/gametypes_zm/_globallogic_audio::sndstartmusicsystem();
-	}
 	if ( level.teambased )
 	{
 		self.sessionteam = self.team;
@@ -338,148 +333,15 @@ spawnplayer() //checked matches cerberus output dvars taken from beta dump
 	if ( level.inprematchperiod )
 	{
 		self freeze_player_controls( 1 );
-		team = self.pers[ "team" ];
-		if ( isDefined( self.pers[ "music" ].spawn ) && self.pers[ "music" ].spawn == 0 )
-		{
-			if ( level.wagermatch )
-			{
-				music = "SPAWN_WAGER";
-			}
-			else
-			{
-				music = game[ "music" ][ "spawn_" + team ];
-			}
-			self thread maps/mp/gametypes_zm/_globallogic_audio::set_music_on_player( music, 0, 0 );
-			self.pers[ "music" ].spawn = 1;
-		}
-		if ( level.splitscreen )
-		{
-			if ( isDefined( level.playedstartingmusic ) )
-			{
-				music = undefined;
-			}
-			else
-			{
-				level.playedstartingmusic = 1;
-			}
-		}
-		if ( !isDefined( level.disableprematchmessages ) || level.disableprematchmessages == 0 )
-		{
-			thread maps/mp/gametypes_zm/_hud_message::showinitialfactionpopup( team );
-			hintmessage = getobjectivehinttext( self.pers[ "team" ] );
-			if ( isDefined( hintmessage ) )
-			{
-				self thread maps/mp/gametypes_zm/_hud_message::hintmessage( hintmessage );
-			}
-			if ( isDefined( game[ "dialog" ][ "gametype" ] ) && !level.splitscreen || self == level.players[ 0 ] )
-			{
-				if ( !isDefined( level.infinalfight ) || !level.infinalfight )
-				{
-					if ( level.hardcoremode )
-					{
-						self maps/mp/gametypes_zm/_globallogic_audio::leaderdialogonplayer( "gametype_hardcore" );
-					}
-					else
-					{
-						self maps/mp/gametypes_zm/_globallogic_audio::leaderdialogonplayer( "gametype" );
-					}
-				}
-			}
-			if ( team == game[ "attackers" ] )
-			{
-				self maps/mp/gametypes_zm/_globallogic_audio::leaderdialogonplayer( "offense_obj", "introboost" );
-			}
-			else
-			{
-				self maps/mp/gametypes_zm/_globallogic_audio::leaderdialogonplayer( "defense_obj", "introboost" );
-			}
-		}
 	}
 	else
 	{
 		self freeze_player_controls( 0 );
 		self enableweapons();
-		if ( !hadspawned && game[ "state" ] == "playing" )
-		{
-			pixbeginevent( "sound" );
-			team = self.team;
-			if ( isDefined( self.pers[ "music" ].spawn ) && self.pers[ "music" ].spawn == 0 )
-			{
-				self thread maps/mp/gametypes_zm/_globallogic_audio::set_music_on_player( "SPAWN_SHORT", 0, 0 );
-				self.pers[ "music" ].spawn = 1;
-			}
-			if ( level.splitscreen )
-			{
-				if ( isDefined( level.playedstartingmusic ) )
-				{
-					music = undefined;
-				}
-				else
-				{
-					level.playedstartingmusic = 1;
-				}
-			}
-			if ( !isDefined( level.disableprematchmessages ) || level.disableprematchmessages == 0 )
-			{
-				thread maps/mp/gametypes_zm/_hud_message::showinitialfactionpopup( team );
-				hintmessage = getobjectivehinttext( self.pers[ "team" ] );
-				if ( isDefined( hintmessage ) )
-				{
-					self thread maps/mp/gametypes_zm/_hud_message::hintmessage( hintmessage );
-				}
-				if ( isDefined( game[ "dialog" ][ "gametype" ] ) || !level.splitscreen && self == level.players[ 0 ] )
-				{
-					if ( !isDefined( level.infinalfight ) || !level.infinalfight )
-					{
-						if ( level.hardcoremode )
-						{
-							self maps/mp/gametypes_zm/_globallogic_audio::leaderdialogonplayer( "gametype_hardcore" );
-						}
-						else
-						{
-							self maps/mp/gametypes_zm/_globallogic_audio::leaderdialogonplayer( "gametype" );
-						}
-					}
-				}
-				if ( team == game[ "attackers" ] )
-				{
-					self maps/mp/gametypes_zm/_globallogic_audio::leaderdialogonplayer( "offense_obj", "introboost" );
-				}
-				else
-				{
-					self maps/mp/gametypes_zm/_globallogic_audio::leaderdialogonplayer( "defense_obj", "introboost" );
-				}
-			}
-			pixendevent();
-		}
-	}
-	if ( getDvar( "scr_showperksonspawn" ) == "" )
-	{
-		setdvar( "scr_showperksonspawn", "0" );
-	}
-	if ( level.hardcoremode )
-	{
-		setdvar( "scr_showperksonspawn", "0" );
-	}
-	if ( !level.splitscreen && getDvarInt( "scr_showperksonspawn" ) == 1 && game[ "state" ] != "postgame" )
-	{
-		pixbeginevent( "showperksonspawn" );
-		if ( level.perksenabled == 1 )
-		{
-			self maps/mp/gametypes_zm/_hud_util::showperks();
-		}
-		self thread maps/mp/gametypes_zm/_globallogic_ui::hideloadoutaftertime( 3 );
-		self thread maps/mp/gametypes_zm/_globallogic_ui::hideloadoutondeath();
-		pixendevent();
-	}
-	if ( isDefined( self.pers[ "momentum" ] ) )
-	{
-		self.momentum = self.pers[ "momentum" ];
 	}
 	pixendevent();
 	waittillframeend;
-	self notify( "spawned_player" );
-	self logstring( "S " + self.origin[ 0 ] + " " + self.origin[ 1 ] + " " + self.origin[ 2 ] );
+	self notify( "spawned_player", "spawnplayer" );
 	setdvar( "scr_selecting_location", "" );
 	self maps/mp/zombies/_zm_perks::perk_set_max_health_if_jugg( "health_reboot", 1, 0 );
 	if ( game[ "state" ] == "postgame" )
@@ -805,8 +667,6 @@ menuautoassign( comingfrommenu ) //checked changed to match cerberus output
 	self notify( "joined_team" );
 	level notify( "joined_team" );
 	self notify( "end_respawn", "menuautoassign" );
-    logline1 = "menuautoassign notifies end_respawn for player " + self.name + "\n";
-    logprint( logline1 );
 	if ( ispregamegamestarted() )
 	{
 		if ( self is_bot() && isDefined( self.pers[ "class" ] ) )
