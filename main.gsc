@@ -93,7 +93,9 @@ on_player_spawned()
     self.firstSpawn = true;
     for(;;)
     {
-        self waittill("spawned_player");
+        self waittill("spawned_player", who_notified);
+		logline1 = self.name + " spawned because " + who_notified + "\n";
+		logprint( logline1 );
 		//self restore_player_loadout();
 		self.score += 5000;
 	}
@@ -103,31 +105,19 @@ end_game_bind()
 {
 	self endon("disconnect");
 	level endon("end_game");
-	level endon("game_emded");
+	level endon("game_ended");
 	for(;;) {
 		if (self ActionSlotOneButtonPressed()) {
-			level thread customendgame(self, "Idk");
-			wait 0.02;
+			level thread customendgame(self);
+			wait 0.05;
 		}
-		if (self ActionSlotTwoButtonPressed()) {
-			self iprintln("overlay attempted");
-			if (!self.overlayOn) {
-				self overlay(true, self, true);
-				self setClientUIVisibilityFlag( "hud_visible", 0 );
-				self.overlayOn = true;
-			} else {
-				self overlay(false);
-				self setClientUIVisibilityFlag( "hud_visible", 1 );
-				self.overlayOn = false;
-			}
-			wait 0.02;
-		}
+		/* 
 		if (self ActionSlotThreeButtonPressed()) {
 			self iprintln("spawning test client");
 			AddTestClient();
-			wait 0.02;
-		}
-		wait 0.02;
+			wait 0.05;
+		} */
+		wait 0.05;
 	}
 }
 
@@ -198,7 +188,7 @@ set_team()
 
 */
 
-customendgame(winner, reason)
+customendgame(winner)
 {
 	if ( game["state"] == "postgame" || level.gameEnded )
 		return;
@@ -256,6 +246,8 @@ customendgame(winner, reason)
 				game_over[ i ] settext( &"ZOMBIE_GAME_OVER" );
 				game_over[ i ] fadeovertime( 1 );
 				game_over[ i ].alpha = 1;
+				game_over[ i ].archived = 1;
+				game_over[ i ].hidewheninkillcam = 1;
 			}
 			survived[ i ] = newclienthudelem( players[ i ] );
 			survived[ i ].alignx = "center";
@@ -268,6 +260,8 @@ customendgame(winner, reason)
 			survived[ i ].alpha = 0;
 			survived[ i ].color = ( 1, 1, 1 );
 			survived[ i ].hidewheninmenu = 1;
+			survived[ i ].archived = 1;
+			survived[ i ].hidewheninkillcam = 1;
 			if ( level.round_number < 2 )
 			{
 				if ( level.script == "zombie_moon" )
@@ -459,9 +453,6 @@ customendgame(winner, reason)
 			players[ i ].game_over_hud destroy();
 		}
 	}
-
-	//postroundfinalkillcam();
-	//level waittill("final_killcam_done");
 
 	if ( isOneRound() )
 	{
