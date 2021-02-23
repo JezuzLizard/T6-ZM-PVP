@@ -780,9 +780,12 @@ overlay(on, attacker, final) {
         self.hud[1] = self shader("CENTER", "CENTER", 0, 200, "white", 854, 80, color, 0.2, 1); //bot bar
         self.hud[2] = self shader("CENTER", "CENTER", 0, 180, "emblem_bg_default", 160, 40, (1, 1, 1), 0.9, 2); //calling card
         self.hud[3] = self shader("CENTER", "CENTER", 5, 188, "zombies_rank_5", 16, 16, (1, 1, 1), 1, 3); //player rank
-        self.hud[4] = self drawtext(name, "LEFT", "CENTER", -44, 171, 1.25, "default", (1,1,1), 1, 3); //player name
-        self.hud[5] = self drawtext(tag, "LEFT", "CENTER", -44, 188, 1.25, "default", (1,1,1), 1, 3); //player tag
-        self.hud[6] = self drawtext(checkKillcamType(final), "CENTER", "CENTER", 0, -180, 3.25, "default", (1,1,1), 1, 3); //top text
+        self.hud[4] = self drawtext(name, "LEFT", "CENTER", -44, 171, 1.20, "default", (1,1,1), 1, 3); //player name
+
+		// since it's zombies and clantags aren't in there, we are gonna comment this out for now
+        //self.hud[5] = self drawtext(tag, "LEFT", "CENTER", -44, 188, 1.25, "default", (1,1,1), 1, 3); //player tag
+
+        self.hud[5] = self drawtext(checkKillcamType(final), "CENTER", "CENTER", 0, -180, 3.25, "default", (1,1,1), 1, 3); //top text
 		for ( i = 0; i < self.hud.size; i++ )
 		{
 			self.hud[ i ].foreground = true;
@@ -797,7 +800,7 @@ overlay(on, attacker, final) {
         self.hud[3] destroy();
         self.hud[4] destroy();
         self.hud[5] destroy();
-        self.hud[6] destroy();
+        //self.hud[6] destroy();
     }
 }
 
